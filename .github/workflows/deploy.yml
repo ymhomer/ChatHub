@@ -1,0 +1,66 @@
+name: Deploy ChatHub
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: chathub-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CHATHUB_FRONTEND_HOST: ${{ vars.CHATHUB_FRONTEND_HOST }}
+  CHATHUB_API_HOST: ${{ vars.CHATHUB_API_HOST }}
+  CHATHUB_D1_NAME: ${{ vars.CHATHUB_D1_NAME }}
+  CHATHUB_D1_ID: ${{ vars.CHATHUB_D1_ID }}
+  CHATHUB_R2_BUCKET: ${{ vars.CHATHUB_R2_BUCKET }}
+
+jobs:
+  build-and-deploy-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate deployment settings
+        run: |
+          node --input-type=module <<'JS'
+          const {CHATHUB_FRONTEND_HOST: frontend, CHATHUB_API_HOST: api, CHATHUB_D1_NAME: db, CHATHUB_D1_ID: id, CHATHUB_R2_BUCKET: bucket} = process.env;
+          const host = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
+          if (!host.test(frontend) || !host.test(api) || frontend === api || !db || !id || !bucket) {
+            throw new Error("Set the frontend and API hostnames, D1 database name and ID, and R2 bucket in repository variables.");
+          }
+          JS
+          echo "CHATHUB_API_ORIGIN=https://$CHATHUB_API_HOST" >> "$GITHUB_ENV"
+          echo "CHATHUB_FRONTEND_ORIGIN=https://$CHATHUB_FRONTEND_HOST" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run build:pages
+      - run: npm run build
+      - name: Apply D1 schema and deploy Worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          npx --no-install wrangler d1 migrations apply "$CHATHUB_D1_NAME" --remote --config dist/server/wrangler.json
+          npx --no-install wrangler deploy --config dist/server/wrangler.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-pages
+
+  deploy-pages:
+    needs: build-and-deploy-api
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: pages
