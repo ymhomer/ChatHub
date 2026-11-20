@@ -19,7 +19,7 @@ const standaloneConfig = frontendOrigin ? {
   routes: process.env.CHATHUB_API_HOST
     ? [{ pattern: process.env.CHATHUB_API_HOST, custom_domain: true as const }]
     : [],
-  workers_dev: false,
+  workers_dev: !process.env.CHATHUB_API_HOST,
 } : {};
 
 const localBindingConfig = {

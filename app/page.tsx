@@ -4,10 +4,10 @@ import { backendFetch as fetch, appPath } from "@/lib/site-urls";
 
 import { type ClipboardEvent, type DragEvent, type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
-import { FileText, Image as ImageIcon, Film, Download, Inbox, MessageCircle, Users, Link as LinkIcon, Menu, LoaderCircle, Paperclip, Search, SendHorizontal, Settings2, Terminal, X } from "lucide-react";
+import { FileText, Image as ImageIcon, Film, Inbox, MessageCircle, Users, Link as LinkIcon, Menu, LoaderCircle, Paperclip, Search, SendHorizontal, Settings2, Terminal, X } from "lucide-react";
 import { uploadMessage, type UploadState } from "@/lib/upload";
 import { filePreview, fileUrl } from "@/lib/file-preview";
-import { FilePreview, MediaTile, type PreviewFile } from "@/components/file-preview";
+import { FileDownload, FilePreview, MediaTile, type PreviewFile } from "@/components/file-preview";
 import { FileSelectionArea } from "@/components/file-selection-area";
 import { TemporaryTransfers } from "@/components/temporary-transfers";
 import { ShareLinks } from "@/components/share-links";
@@ -59,7 +59,7 @@ function MessageCard({ message, edit, open, search, inspect, manage, save, chat,
     {message.attachmentId && <div className="file-row">
       {selection}
       <button type="button" className="file-card" onClick={inspect}><span className="file-icon"><Icon /></span><span className="file-text"><strong>{message.filename}</strong><small>{((message.bytes ?? 0)/1024/1024).toFixed(2)} MB</small></span><span className="file-action">Preview</span></button>
-      <a className="icon-button" aria-label={`Download ${message.filename}`} href={fileUrl(message.attachmentId)}><Download /></a>
+      <FileDownload src={fileUrl(message.attachmentId)} name={message.filename ?? "Attachment"} iconOnly />
     </div>}
     {message.attachmentId && message.canManageFile && <div className="file-actions"><button onClick={()=>manage('rename')}>Rename</button><button onClick={()=>manage('delete')}>Delete</button>{share && <button onClick={share}>Share download</button>}</div>}
     {(copyText || asText || deleteText) && <div className="file-actions">

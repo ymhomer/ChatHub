@@ -13,11 +13,13 @@ permissions:
   contents: read
 
 env:
-  CHATHUB_FRONTEND_HOST: ${{ vars.CHATHUB_FRONTEND_HOST }}
-  CHATHUB_API_HOST: ${{ vars.CHATHUB_API_HOST }}
-  CHATHUB_D1_NAME: ${{ vars.CHATHUB_D1_NAME }}
-  CHATHUB_D1_ID: ${{ vars.CHATHUB_D1_ID }}
-  CHATHUB_R2_BUCKET: ${{ vars.CHATHUB_R2_BUCKET }}
+  CHATHUB_FRONTEND_ORIGIN: https://ymhomer.github.io
+  CHATHUB_API_ORIGIN: https://chathub-api.ymhomer-4253.workers.dev
+  CHATHUB_WORKER_NAME: chathub-api
+  CHATHUB_BASE: /ChatHub/
+  CHATHUB_D1_NAME: ${{ secrets._D1_NAME || vars.CHATHUB_D1_NAME }}
+  CHATHUB_D1_ID: ${{ secrets._D1_ID || vars.CHATHUB_D1_ID }}
+  CHATHUB_R2_BUCKET: ${{ secrets._R2_BUCKET || vars.CHATHUB_R2_BUCKET }}
 
 jobs:
   build-and-deploy-api:
@@ -29,15 +31,9 @@ jobs:
           node-version: '24'
       - name: Validate deployment settings
         run: |
-          node --input-type=module <<'JS'
-          const {CHATHUB_FRONTEND_HOST: frontend, CHATHUB_API_HOST: api, CHATHUB_D1_NAME: db, CHATHUB_D1_ID: id, CHATHUB_R2_BUCKET: bucket} = process.env;
-          const host = /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/;
-          if (!host.test(frontend) || !host.test(api) || frontend === api || !db || !id || !bucket) {
-            throw new Error("Set the frontend and API hostnames, D1 database name and ID, and R2 bucket in repository variables.");
-          }
-          JS
-          echo "CHATHUB_API_ORIGIN=https://$CHATHUB_API_HOST" >> "$GITHUB_ENV"
-          echo "CHATHUB_FRONTEND_ORIGIN=https://$CHATHUB_FRONTEND_HOST" >> "$GITHUB_ENV"
+          test -n "$CHATHUB_D1_NAME" || { echo "::error::Missing _D1_NAME"; exit 1; }
+          test -n "$CHATHUB_D1_ID" || { echo "::error::Missing _D1_ID"; exit 1; }
+          test -n "$CHATHUB_R2_BUCKET" || { echo "::error::Missing _R2_BUCKET"; exit 1; }
       - run: npm ci
       - run: npm run build:pages
       - run: npm run build

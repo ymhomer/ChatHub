@@ -45,15 +45,19 @@ const worker = {
       for (const key of [...headers.keys()]) {
         if (key.startsWith("oai-authenticated-user-")) headers.delete(key);
       }
+      if (api && allowed) {
+        const token = /^Bearer ([A-Za-z0-9_-]{32,128})$/.exec(headers.get("Authorization") ?? "")?.[1];
+        headers.delete("Cookie");
+        if (token) headers.set("Cookie", `chathub_session=${token}`);
+      }
       request = new Request(request, { headers });
 
       if (request.method === "OPTIONS" && api) {
         if (!allowed) return new Response(null, { status: 403 });
         return new Response(null, { status: 204, headers: {
           "Access-Control-Allow-Origin": frontend,
-          "Access-Control-Allow-Credentials": "true",
           "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, PATCH, DELETE",
-          "Access-Control-Allow-Headers": "Content-Type, Range, If-Match",
+          "Access-Control-Allow-Headers": "Authorization, Content-Type, Range, If-Match",
           "Vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
         } });
       }
@@ -85,8 +89,13 @@ const worker = {
     headers.append("Vary", "Origin");
     if (allowed) {
       headers.set("Access-Control-Allow-Origin", frontend);
-      headers.set("Access-Control-Allow-Credentials", "true");
-      headers.set("Access-Control-Expose-Headers", "ETag, Content-Range, Accept-Ranges, Content-Disposition");
+      const cookie = headers.getSetCookie().find(value => value.startsWith("chathub_session="));
+      if (cookie) {
+        headers.set("X-ChatHub-Session", cookie.split(";")[0].slice("chathub_session=".length) || "clear");
+        headers.set("Cache-Control", "no-store");
+      }
+      headers.delete("Set-Cookie");
+      headers.set("Access-Control-Expose-Headers", "ETag, Content-Range, Accept-Ranges, Content-Disposition, X-ChatHub-Session");
     }
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   },

@@ -1,11 +1,12 @@
-import { backendPath, standalone } from "./site-urls";
+import { backendPath, sessionToken } from "./site-urls";
 export type UploadState = { phase: 'uploading' | 'saving'; percent: number | null };
 /** Multipart transport with real browser upload progress and readable non-JSON errors. */
 export function uploadMessage(form: FormData, onProgress: (state: UploadState) => void, makeRequest = () => new XMLHttpRequest()): Promise<{ id: string; attachmentId: string | null }> {
   return new Promise((resolve,reject) => {
     const xhr=makeRequest();
     xhr.open('POST', backendPath('/api/messages'));
-    if (standalone) xhr.withCredentials = true;
+    const token = sessionToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.timeout=180_000;
     xhr.setRequestHeader('Accept','application/json');
     xhr.upload.onprogress=event=>onProgress({phase:'uploading',percent:event.lengthComputable?Math.min(100,Math.round(event.loaded/event.total*100)):null});
